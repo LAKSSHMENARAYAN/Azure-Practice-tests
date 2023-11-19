@@ -1,0 +1,779 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <!-- your existing head content here -->
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Azure Quiz</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f4f4f4;
+        }
+
+        #quiz-container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #fff;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        #header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        #quiz-number {
+            font-size: 16px;
+            color: #555;
+        }
+
+        #quiz-image {
+            width: 24px;
+            height: 24px;
+        }
+
+        .question {
+            font-size: 18px;
+            margin-bottom: 10px;
+            color: #333;
+            display: flex;
+            align-items: center;
+        }
+
+        #voiceIcon {
+            margin-left: 10px;
+            cursor: pointer;
+            width: 32px;
+            height: 32px;
+        }
+
+        .options {
+            margin-bottom: 20px;
+        }
+
+        .option {
+            margin-bottom: 10px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        .option:hover {
+            background-color: #f0f0f0;
+        }
+
+        .selected {
+            background-color: #ff6666 !important; /* Light red color for selected wrong option */
+        }
+
+        .correct {
+            background-color: #8bc34a !important; /* Light green color for correct option */
+        }
+
+        #timer {
+            font-size: 16px;
+            margin-bottom: 10px;
+            color: #555;
+        }
+
+        #result {
+            font-size: 18px;
+            margin-top: 20px;
+            color: #333;
+        }
+
+        #explanation {
+            font-size: 16px;
+            margin-top: 10px;
+            color: #555;
+            font-weight: bold;
+        }
+
+        #nextButton {
+            padding: 10px;
+            font-size: 16px;
+            cursor: pointer;
+            display: none;
+            background-color: #3498db;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            transition: background-color 0.3s;
+        }
+
+        #nextButton:hover {
+            background-color: #2980b9;
+        }
+
+        #celebration-animation {
+            text-align: center; /* Center the content horizontally */
+            margin-top: 20px; /* Add some top margin for spacing */
+        }
+
+        #celebration-animation img {
+            max-width: 50%; /* Make sure the image doesn't exceed the container width */
+            height: auto; /* Maintain the image's aspect ratio */
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="quiz-container">
+        <!-- your existing quiz content here -->
+        <div id="header">
+            <div id="quiz-number">Quiz 1 / 20</div>
+            <!-- Remove the existing image -->
+        </div>
+        <div id="question" class="question"></div>
+        <div id="options" class="options"></div>
+        <div id="timer"></div>
+        <div id="result"></div>
+        <div id="explanation"></div>
+        <button id="nextButton" onclick="nextQuestion()">Next</button>
+    </div>
+
+    
+
+    <div id="review-container" style="display: none;">
+        <h2>Quiz Review</h2>
+        <p id="review-text"></p>
+        <div id="celebration-animation"></div>
+    </div>
+
+    <script>
+        var currentQuestionIndex = 0;
+        var timer;
+        var speechSynthesisUtterance;
+        var isVoiceOn = false;
+
+        var questions = [
+    {
+        question: "What do you get when you use Cool access tier for Azure Blob Storage?",
+        options: [
+            "The fastest way to retrieve files in Azure for high-performance needs",
+            "The least expensive way to store files per GB in Azure",
+            "Less expensive per GB to store the file, and more expensive to access the file",
+            "A way to archive files that are needed only in an emergency, but take a few hours to recover if you need them"
+        ],
+        correctOption: "Less expensive per GB to store the file, and more expensive to access the file",
+        explanation: "Azure storage offers different access tiers, allowing you to store blob object data in the most cost-effective manner. Cool tier is optimized for storing data that is infrequently accessed and stored for at least 30 days. It's roughly 25% cheaper to store data than the Hot tier, but twice as expensive to read and write data."
+    },
+    {
+        question: "You have a production application that reads and writes to an Azure SQL Database around 100 times per second. Occasionally, you get an exception inside your application, '40501 - The service is currently busy.' What is the likely cause of this type of error? And what is the mitigation for that?",
+        options: [
+            "Azure SQL Database has per DTU IOPS limits. Those limits can be increased by opening a support ticket with Azure.",
+            "Azure SQL Database has per DTU IOPS limits. Increase the DTUs to a higher level, or retry the request after a few seconds delay.",
+            "Azure SQL Database has IOPS limits. Move the database to a SQL Server in a VM or a Managed SQL Instance.",
+            "Azure SQL Database runs on the same server as other Azure clients, and sometimes their usage will affect yours. Move to an isolated DB instance."
+        ],
+        correctOption: "Azure SQL Database has per DTU IOPS limits. Increase the DTUs to a higher level, or retry the request after a few seconds delay.",
+        explanation: "There are IOPS limits tied to the number of DTUs in a database tier. Moving to a higher tier will increase those limits."
+    },
+    {
+        question: "Which of the following methods is commonly used to secure data in transit?",
+        options: [
+            "Site-to-site VPN",
+            "Hard disk encryption",
+            "Azure Active Directory",
+            "User ID and password"
+        ],
+        correctOption: "Site-to-site VPN",
+        explanation: "Because data is moving back and forth from many locations, we generally recommend that you always use SSL/TLS protocols to exchange data across different locations."
+    },
+    {
+        question: "When deploying an Azure Storage account, and you choose Zone Redundant Storage (ZRS), how many copies of your data does Azure keep?",
+        options: [
+            "3 copies in each Availability Zone",
+            "1",
+            "3",
+            "6"
+        ],
+        correctOption: "3",
+        explanation: "Azure Storage always stores multiple copies of your data. Zone-redundant storage (ZRS) copies your data synchronously across three Azure availability zones in the primary region."
+    },
+    {
+        question: "Name all of the Azure non-relational data stores that store data as key-value pairs.",
+        options: [
+            "Azure SQL Database, SQL Server in a VM, SQL Managed Instance",
+            "Cosmos DB",
+            "Azure Database for MySQL, Azure Database for PostgreSQL, Azure Database for MariaDB",
+            "Cosmos DB Table API, Azure Cache for Redis, Table Storage"
+        ],
+        correctOption: "Cosmos DB Table API, Azure Cache for Redis, Table Storage",
+        explanation: "Key-value pairs are a feature of the Table storage of Cosmos DB, Table storage, and Redis cache."
+    },
+    {
+        question: "Which of the following database models is optimized for the day-to-day operations of a company's business?",
+        options: [
+            "OLTP (online transaction processing)",
+            "OLAP (online analytics processing)",
+            "CSV files",
+            "Data warehousing"
+        ],
+        correctOption: "OLTP (online transaction processing)",
+        explanation: "OLTP is specially for data that can be added, updated and deleted as business is done. It's a good general mix between searching and selecting data, and modifying data."
+    },
+    {
+        question: "What is the minimum number of Request Units per second (RU/s) that you can allocate to a Cosmos DB database or container?",
+        options: [
+            "1000 RU/s",
+            "100 RU/s",
+            "400 RU/s",
+            "0 RU/s"
+        ],
+        correctOption: "400 RU/s",
+        explanation: "The minimum throughput you can allocate to a database or container is 400 RU/s."
+    },
+    {
+        question: "Which of the following techniques is an example of Least Privileged Access?",
+        options: [
+            "Have managers regularly review their employees' access using Access Reviews.",
+            "Enable auditing and logging.",
+            "Just-In-Time (JIT) access",
+            "Have users regularly review their own access using Access Reviews."
+        ],
+        correctOption: "Just-In-Time (JIT) access",
+        explanation: "Limit user access with Just-In-Time and Just-Enough-Access (JIT/JEA), risk-based adaptive policies, and data protection."
+    },
+    {
+        question: "Which Azure data service is best used for moving data from one source to another destination, with the ability to transform the data (process it) along the way?",
+        options: [
+            "Azure Data Migration",
+            "Azure Data Factory",
+            "Azure SQL Database",
+            "Azure Machine Learning"
+        ],
+        correctOption: "Azure Data Factory",
+        explanation: "If you have to do processing of data along the way, Azure Data Factory has the ability to move data from one source to another destination with processing along the way."
+    },
+    {
+        question: "What is the concept of NORMALIZATION when it comes to relational databases?",
+        options: [
+            "Compressing a data table to its smallest possible size",
+            "The process of eliminating redundancy in data tables by splitting large tables up into several smaller tables, establishing relationships between those tables, and reducing the size of the overall database.",
+            "Removing duplicate rows from a table",
+            "Regenerating a table's indexes to increase performance"
+        ],
+        correctOption: "The process of eliminating redundancy in data tables by splitting large tables up into several smaller tables, establishing relationships between those tables, and reducing the size of the overall database.",
+        explanation: "Normalization is the process of organizing data in a database, eliminating redundancy and inconsistent dependency."
+    },
+    {
+        question: "What feature of SQL Database ensures that data can be encrypted end to end, and never in a decrypted state at any time outside the client machine?",
+        options: [
+            "Always Encrypted",
+            "Row-level security",
+            "Azure Threat Detection",
+            "Dynamic Data Masking"
+        ],
+        correctOption: "Always Encrypted",
+        explanation: "Always Encrypted is a feature designed to protect sensitive data, such as credit card numbers or national identification numbers, stored in Azure SQL Database or SQL Server databases."
+    },
+    {
+        question: "Which of the following is a consequence of having a foreign key relationship between two relational data tables?",
+        options: [
+            "An INSERT statement will fail if the value of the foreign key column, other than NULL, doesn't exist in the other table.",
+            "A foreign key on one table always refers to the primary key of another table.",
+            "If the user attempts to INSERT data into one table, and the foreign key doesn't exist in the other table, the database will insert a new row for it to maintain integrity.",
+            "You can DELETE a row of a data table that has several other rows in other tables dependent on it as a foreign key."
+        ],
+        correctOption: "An INSERT statement will fail if the value of the foreign key column, other than NULL, doesn't exist in the other table.",
+        explanation: "When a value other than NULL is entered into the column of a FOREIGN KEY constraint, the value must exist in the referenced column. Otherwise, a foreign key violation error message is returned."
+    },
+    {
+        question: "What is the advantage of using Transaction Optimized storage for Azure File Storage?",
+        options: [
+            "It stores files in memory, providing much faster performance than storing to the disk drive",
+            "It provides the same performance as Premium Storage, for half the price",
+            "It costs the same as Hot storage but provides better performance for smaller files",
+            "Around 25%-33% of the cost of Hot storage per read-write operation, but twice as expensive per GB for storage. This can save you money for heavily accessed files without using the Premium access tier."
+        ],
+        correctOption: "Around 25%-33% of the cost of Hot storage per read-write operation, but twice as expensive per GB for storage. This can save you money for heavily accessed files without using the Premium access tier.",
+        explanation: "Transaction Optimized storage provides a better cost profile for frequently accessed files, with higher costs for storage but lower costs for access."
+    },
+    {
+        question: "What feature of Azure Blob Storage, if enabled, allows you to retrieve files that have previously been deleted within a time period?",
+        options: [
+            "Immutable blobs",
+            "Azure Policy",
+            "Soft Delete",
+            "Change Feed"
+        ],
+        correctOption: "Soft Delete",
+        explanation: "Soft Delete allows you to recover deleted files within a set time period as configured."
+    },
+    {
+        question: "You have a SQL Database Server named SQLDB, and two SQL Databases named DB1 and DB2. SQLDB has a server-level firewall that allows IP addresses in the range 123.123.123.0-123.123.123.255 and denies all other traffic. DB1 has a database level firewall rule that allows IPs in the range 123.123.123.0-123.123.124.255. When a client using the IP address 123.123.124.25 attempts to access DB1, are they successful?",
+        options: [
+            "Yes, the connection will succeed",
+            "No, the connection will not succeed"
+        ],
+        correctOption: "Yes, the connection will succeed",
+        explanation: "You can have both server- and database-level firewall IP rules, and they exist independently. In this case, the client trying to access the database is allowed by a database-level IP rule."
+    },
+    {
+        question: "Which of the following metrics affect how much an Azure Redis Cache instance costs?",
+        options: [
+            "Region, Pricing tier",
+            "Region, pricing tier, hours",
+            "Region, Consumed storage, pricing tier",
+            "Per transaction"
+        ],
+        correctOption: "Region, pricing tier, hours",
+        explanation: "Redis Cache is charged by the hour, and varies by region. It also depends on the tier you choose."
+    },
+    {
+        question: "Which of the following data types can be called unstructured data?",
+        options: [
+            "JSON data",
+            "SQL Database table",
+            "Contents of a Blob storage container",
+            "Azure Table Storage"
+        ],
+        correctOption: "Contents of a Blob storage container",
+        explanation: "The organization of unstructured data is ambiguous. Unstructured data is often delivered in files, such as photos or videos."
+    },
+    {
+        question: "Which of the following is a valid IP address range using the CIDR address method?",
+        options: [
+            "110.0.0.*",
+            "110.0.0.0-110.0.0.255",
+            "110.0.0.0-255",
+            "110.0.0.0/8"
+        ],
+        correctOption: "110.0.0.0/8",
+        explanation: "CIDR introduced a new method of representation for IP addresses, now commonly known as CIDR notation, in which an address or routing prefix is written with a suffix indicating the number of bits of the prefix."
+    },
+    {
+        question: "A customer just purchased a service from your company, and a new data row was added to table SALES to indicate this event as soon as it happened. What type of database is this?",
+        options: [
+            "OLTP",
+            "Cache",
+            "OLAP",
+            "Data Warehousing"
+        ],
+        correctOption: "OLTP",
+        explanation: "The management of transactional data using computer systems is referred to as online transaction processing (OLTP)."
+    },
+    {
+        question: "You need a non-relational data store that supports key-value storage. This needs to be the most cost-effective way for storing data in Azure as you are expecting a large volume of data that needs to be sorted, processed and cleaned up before being migrated into another long-term data format. Which non-relational data store do you recommend?",
+        options: [
+            "Azure SQL Database",
+            "Cosmos DB",
+            "Azure Table Storage",
+            "Azure Data Lake Storage Gen2"
+        ],
+        correctOption: "Azure Table Storage",
+        explanation: "Azure Table Storage allows you to store key-value data as the cheapest per GB rate."
+    },
+    {
+        question: "Which type of data analytics workload is best for processing data that arrives from an external source once per day?",
+        options: [
+            "Real-time processing",
+            "Queue messaging",
+            "Stream processing",
+            "Batch processing"
+        ],
+        correctOption: "Batch processing",
+        explanation: "A common big data scenario is batch processing of data at rest. In this scenario, the source data is loaded into data storage, either by the source application itself or by an orchestration workflow. The data is then processed in-place by a parallelized job, which can also be initiated by the orchestration workflow. The processing may include multiple iterative steps before the transformed results are loaded into an analytical data store, which can be queried by analytics and reporting components."
+    },
+    {
+        question: "You are trying to determine which type of database to store your Employee data in. What type of data do you have?",
+        options: [
+            "Structured data",
+            "Unstructured data",
+            "Comma-separated files (CSV)",
+            "Semi-structured data"
+        ],
+        correctOption: "Semi-structured data",
+        explanation: "Semi-structured data is data that follows some format, but that format is not enforced by the database. The fields are labelled, but at any time, any field can be missing and the data would still be stored in the DB. Your application needs to deal with this variety."
+    },
+    {
+        question: "What type of file system does Azure Data Lake Storage Gen2 use?",
+        options: [
+            "NTFS",
+            "EXT3",
+            "FAT32",
+            "Hadoop Distributed File System (HDFS)"
+        ],
+        correctOption: "Hadoop Distributed File System (HDFS)",
+        explanation: "The Azure Data Lake uses a driver compatible with the Hadoop File System (HDFS). It is designed to be highly fault-tolerant, provide high throughput access, and is suitable for applications that have large data sets. It runs on top of the underlying disk file system."
+    },
+    {
+        question: "What is one way that you can secure all data coming to and from an Azure Storage Account?",
+        options: [
+            "Use Always Encrypted client library",
+            "Regenerate the Primary Access Key",
+            "Dynamic Data Masking",
+            "Enable 'Secure transfer required' property for the storage account"
+        ],
+        correctOption: "Enable 'Secure transfer required' property for the storage account",
+        explanation: "You can configure your storage account to accept requests from secure connections only by setting the Secure transfer required property for the storage account. When you require secure transfer, any requests originating from an insecure connection are rejected. Microsoft recommends that you always require secure transfer for all of your storage accounts."
+    },
+    {
+        question: "You are a developer for ACME organization, and you run a basic SQL SELECT query against the customer database. Some of the fields come back partly hidden. What SQL Database feature is being used to hide the data?",
+        options: [
+            "Azure Data Encryption",
+            "Row-level security",
+            "Always On Encryption",
+            "Dynamic Data Masking"
+        ],
+        correctOption: "Dynamic Data Masking",
+        explanation: "Dynamic data masking (DDM) limits sensitive data exposure by masking it to non-privileged users. It can be used to greatly simplify the design and coding of security in your application. Dynamic data masking helps prevent unauthorized access to sensitive data by enabling customers to specify how much sensitive data to reveal with minimal impact on the application layer."
+    },
+    {
+        question: "Who's responsibility is 'data security' in the Azure Shared Responsibility model?",
+        options: [
+            "Entirely Microsoft's responsibility",
+            "Nobody's responsibility",
+            "Shared between Azure and the client",
+            "Entirely the client's responsibility"
+        ],
+        correctOption: "Shared between Azure and the client",
+        explanation: "Data security is a shared responsibility between you, the customer, and your database provider. Depending on the database provider you choose, the amount of responsibility you carry can vary. If you choose an on-premises solution, you need to provide everything from end-point protection to physical security of your hardware. If you choose a PaaS cloud database provider such as Azure Cosmos DB, your area of concern shrinks considerably."
+    },
+    {
+        question: "What is the difference between a clustered and unclustered index in SQL Server?",
+        options: [
+            "A clustered index uses a single column as a key, while a nonclustered index uses multiple columns.",
+            "A nonclustered index sort and store the data rows based on their key values. Clustered indexes have a structure separate from the data rows.",
+            "There is no performance cost to inserting data into a table with a clustered index, while inserting data into a table with an nonclustered index is an expensive operation.",
+            "A clustered index sort and store the data rows based on their key values. Nonclustered indexes have a structure separate from the data rows."
+        ],
+        correctOption: "A clustered index sort and store the data rows based on their key values. Nonclustered indexes have a structure separate from the data rows.",
+        explanation: "Clustered indexes sort and store the data rows in the table or view based on their key values. These are the columns included in the index definition. There can be only one clustered index per table, because the data rows themselves can be stored in only one order. This is also called a PRIMARY KEY."
+    },
+    {
+        question: "What type of non-relational data revolves around storing and retrieving large binary files or blobs, such as images, videos, text files, and audio files?",
+        options: [
+            "Document data",
+            "Key-value data",
+            "Graph data",
+            "Object data"
+        ],
+        correctOption: "Object data",
+        explanation: "Object data, which is Azure Blob Storage inside Azure, uses a container metaphor. You can store any type of binary or text data into it, using files. The data store is optimized for files such as images and videos."
+    },
+    {
+        question: "Which of the following is considered a downside to using a non-relational data store compared to a relational database?",
+        options: [
+            "Relational data stores are better for extremely high-throughput",
+            "Non-relational data store does not support different data storage types",
+            "It's harder to modify the data schema of a non-relational data store",
+            "An non-relational data store does not enforce a consistent data state within the database."
+        ],
+        correctOption: "An non-relational data store does not enforce a consistent data state within the database.",
+        explanation: "If your database has a lot of links that require data to exist in one place in order for data in another place to have meaning, you might need to do more work to ensure that consistency in a non-relational database. Relational databases support foreign keys, and can block certain INSERTS, UPDATES, or DELETES if the foreign key relationship doesn't allow it."
+    },
+    {
+        question: "You are having trouble connecting to an Azure SQL Database inside Azure from your home. Other clients are able to connect to it successfully. What is the most likely reason you can't connect to this particular SQL Database?",
+        options: [
+            "You need to connect through port 1433",
+            "You need to add your client IP address to the firewall.",
+            "You need to grant your Azure AD user read rights to the DB",
+            "You need to give the user specific rights to the individual DB"
+        ],
+        correctOption: "You need to add your client IP address to the firewall.",
+        explanation: "Azure SQL Database has a server and database firewall. By default, no IP addresses are allowed to access the database until you add one."
+    },
+    {
+        question: "With a relational data store, when data transaction volumes get too high and database performance suffers, which of the following is a common yet difficult method of distributing those data transactions over multiple servers?",
+        options: [
+            "Manual sharding",
+            "SQL Server Stretch DB",
+            "SQL Database autoscale",
+            "Server scale-up"
+        ],
+        correctOption: "Manual sharding",
+        explanation: "One of the most obvious challenges when maintaining a relational database system is that most relational engines apply locks and latches to enforce strict ACID semantics. Due to these fundamental architectural restrictions, high transactional volumes can result in the need to manually shard data. Implementing manual sharding can be a time-consuming and painful exercise."
+    },
+    {
+        question: "When it comes to data security, what is the principle of least privilege?",
+        options: [
+            "Users are only granted permissions for the specific task that they are trying to do, at the moment they are trying to do it.",
+            "Users access rights should be reviewed regularly, every month or every quarter, to ensure that they still require access to the resources they have access to.",
+            "Administrative users should be forced to use MFA when logging in.",
+            "Users only have the permissions they need to complete their job, and no more."
+        ],
+        correctOption: "Users only have the permissions they need to complete their job, and no more.",
+        explanation: "Grant the least privilege that's required to complete a task; audit and log access requests."
+    },
+    {
+        question: "Why would someone choose Azure Table Storage instead of Azure Cosmos DB Table API?",
+        options: [
+            "Scalable to any number of regions",
+            "Complete indexing of all properties by default",
+            "Lowest-cost option",
+            "Guaranteed single-digit millisecond latency for reads and writes"
+        ],
+        correctOption: "Lowest-cost option",
+        explanation: "Table Storage is a good solution when you have a large volume of key-value data and don't want to pay too much to store it, especially when latency is not a huge issue for you."
+    },
+    {
+        question: "The SQL SELECT statement is part of which group of SQL statements?",
+        options: [
+            "Data Definition Language (DDL)",
+            "Data Manipulation Language (DML)",
+            "Data Query Language (DQL)",
+            "Data Control Language (DCL)"
+        ],
+        correctOption: "Data Manipulation Language (DML)",
+        explanation: "Data Manipulation Language (DML) affects the information stored in the database. Use these statements to insert, update, and change the rows in the database. These statements include SELECT, INSERT, UPDATE, and DELETE."
+    },
+    {
+        question: "Which of the following activities would be considered part of Azure Data Factory's Control Flow?",
+        options: [
+            "Data Flow",
+            "MapReduce",
+            "Copy Data",
+            "If Condition"
+        ],
+        correctOption: "If Condition",
+        explanation: "Control flow activities are the ones that allow looping, if conditions, filtering, and having a pipeline invoke another pipeline."
+    },
+    {
+        question: "You are developing a Power BI report for users to view on their desktop workstations. What type of Power BI report should you create?",
+        options: [
+            "Dashboard",
+            "PDF Reports",
+            "Paginated Reports",
+            "Interactive Reports"
+        ],
+        correctOption: "Interactive Reports",
+        explanation: "Interactive reports allow the user to interact with the report. They can show detailed data, and optional features such as drill-downs, filters, and sorting."
+    },
+    {
+        question: "You are a Power BI report designer, and the client is looking for a sales report that lists all the cars sold in the past month. Each row represents one car sold, and each column contains the characteristics of the sale. Which type of report should you create in Power BI?",
+        options: [
+            "A one-page report with thousands of rows",
+            "Dashboard",
+            "Paginated Reports",
+            "Jupyter Notebook"
+        ],
+        correctOption: "Paginated Reports",
+        explanation: "Any time your client asks for detail, in rows and columns, you should be thinking about a paginated report."
+    },
+    {
+        question: "How many databases can you create in a single Cosmos DB account?",
+        options: [
+            "1",
+            "10",
+            "100",
+            "Unlimited"
+        ],
+        correctOption: "Unlimited",
+        explanation: "There is no limit to the number of databases in a single Cosmos DB account."
+    },
+    {
+        question: "What method of provisioning a non-relational database involves writing a script?",
+        options: [
+            "Visual C#",
+            "Azure Portal",
+            "ARM templates",
+            "PowerShell, or CLI"
+        ],
+        correctOption: "PowerShell, or CLI",
+        explanation: "You can use command-line scripts using Powershell or CLI to make changes to Azure. You can provision Cosmos DB from the command line as well."
+    },
+    {
+        question: "What type of storage is Azure Table Storage?",
+        options: [
+            "Object storage",
+            "Key-value storage",
+            "Document storage",
+            "Column-family storage"
+        ],
+        correctOption: "Key-value storage",
+        explanation: "Azure Table storage is a service that stores non-relational structured data (also known as structured NoSQL data) in the cloud, providing a key/attribute store with a schemaless design."
+    }
+    // Add more questions as needed
+];
+
+
+        function startQuiz() {
+            currentQuestionIndex = 0;
+            displayQuestion();
+        }
+
+        function displayQuestion() {
+            var questionContainer = document.getElementById("question");
+            var optionsContainer = document.getElementById("options");
+            var timerContainer = document.getElementById("timer");
+            var resultContainer = document.getElementById("result");
+            var explanationContainer = document.getElementById("explanation");
+            var nextButton = document.getElementById("nextButton");
+            var quizNumberContainer = document.getElementById("quiz-number");
+
+            var currentQuestion = questions[currentQuestionIndex];
+
+            quizNumberContainer.textContent = "Quiz " + (currentQuestionIndex + 1) + " / " + questions.length;
+
+            questionContainer.innerHTML = `<div>${currentQuestionIndex + 1}. ${currentQuestion.question}</div><img id="voiceIcon" src="file:///C:/Users/Engin/OneDrive/Desktop/Website/photos/speaker.jpg" alt="Voice" onclick="toggleVoice('${currentQuestion.question} ${currentQuestion.options.join('. ')}')">`;
+            timerContainer.textContent = "Time remaining: 48 seconds";
+
+            optionsContainer.innerHTML = "";
+            currentQuestion.options.forEach(function (option, index) {
+                var optionElement = document.createElement("div");
+                optionElement.className = "option";
+                optionElement.textContent = (index + 1) + ". " + option;
+                optionElement.onclick = function () {
+                    checkAnswer(option, index);
+                };
+                optionsContainer.appendChild(optionElement);
+            });
+
+            resultContainer.textContent = "";
+            explanationContainer.textContent = "";
+            nextButton.style.display = "none";
+
+            startTimer();
+            // Your existing code for displaying a question
+        }
+
+        function startTimer() {
+            var timerContainer = document.getElementById("timer");
+            var seconds = 48;
+
+            timer = setInterval(function () {
+                seconds--;
+                timerContainer.textContent = "Time remaining: " + seconds + " seconds";
+
+                if (seconds <= 0) {
+                    clearInterval(timer);
+                    nextQuestion();
+                }
+            }, 1000);
+            // Your existing code for the timer
+        }
+
+        function checkAnswer(selectedOption, selectedIndex) {
+        clearInterval(timer);
+
+        var currentQuestion = questions[currentQuestionIndex];
+        var resultContainer = document.getElementById("result");
+        var explanationContainer = document.getElementById("explanation");
+        var nextButton = document.getElementById("nextButton");
+        var options = document.getElementsByClassName("option");
+
+        // Disable further option selection
+        for (var i = 0; i < options.length; i++) {
+            options[i].onclick = function () {};
+        }
+
+        // Remove all previous highlights
+        for (var i = 0; i < options.length; i++) {
+            options[i].classList.remove("selected");
+            options[i].classList.remove("correct");
+        }
+
+        // Store the user's answer in the questions array
+        currentQuestion.userAnswer = selectedOption;
+
+        if (selectedOption === currentQuestion.correctOption) {
+            resultContainer.textContent = "Correct!";
+            explanationContainer.innerHTML = "<p><strong>Explanation</strong>: " + currentQuestion.explanation + "</p>";
+            options[selectedIndex].classList.add("correct");
+        } else {
+            resultContainer.textContent = "Wrong. The correct answer is: " + currentQuestion.correctOption;
+            explanationContainer.innerHTML = "<p><strong>Explanation</strong>: " + currentQuestion.explanation + "</p>";
+            options[selectedIndex].classList.add("selected");
+            options[currentQuestion.options.indexOf(currentQuestion.correctOption)].classList.add("correct");
+        }
+
+        stopVoice(); // Stop ongoing voice when moving to the next question
+        nextButton.style.display = "block";
+    }
+
+            // Your existing code for checking the answer
+        
+
+            function nextQuestion() {
+            clearInterval(timer);
+            stopVoice(); // Stop ongoing voice when moving to the next question
+            currentQuestionIndex++;
+
+            if (currentQuestionIndex < questions.length) {
+                displayQuestion();
+            } else {
+                displayReview(); // Call the displayReview function when all questions are answered
+            }
+            // Your existing code for moving to the next question
+        }
+
+        function toggleVoice(text) {
+            if (isVoiceOn) {
+                stopVoice();
+            } else {
+                speak(text);
+            }
+            isVoiceOn = !isVoiceOn; // Toggle the state
+        }
+            // Your existing code for toggling voice
+
+        function speak(text) {
+            speechSynthesisUtterance = new SpeechSynthesisUtterance(text);
+            window.speechSynthesis.speak(speechSynthesisUtterance);
+            // Your existing code for speaking
+        }
+
+        function stopVoice() {
+            if (speechSynthesisUtterance) {
+                window.speechSynthesis.cancel();
+                speechSynthesisUtterance = null; // Reset the SpeechSynthesisUtterance object
+            }
+            // Your existing code for stopping voice
+        }
+
+        function displayReview() {
+        var quizContainer = document.getElementById("quiz-container");
+        var reviewContainer = document.getElementById("review-container");
+        var reviewText = document.getElementById("review-text");
+        var celebrationAnimation = document.getElementById("celebration-animation");
+
+        var correctAnswers = 0;
+        var wrongAnswers = 0;
+
+        questions.forEach(function (question) {
+            if (question.userAnswer === question.correctOption) {
+                correctAnswers++;
+            } else {
+                wrongAnswers++;
+            }
+        });
+
+        var passPercentage = 70;
+        var userScore = (correctAnswers / questions.length) * 100;
+
+        var reviewMessage = "You answered " + correctAnswers + " out of " + questions.length + " questions correctly.";
+
+        if (userScore >= passPercentage) {
+            reviewText.innerHTML = "<p style='font-size: 24px; text-align: center;'>Congratulations! You passed the quiz.</p>";
+            celebrationAnimation.innerHTML = "<img src='file:///C:/Users/Engin/OneDrive/Desktop/Website/photos/congratulation.jpg' alt='Celebration'>";
+        } else {
+            reviewText.innerHTML = "<p style='font-size: 24px; text-align: center;'>Unfortunately, you did not pass the quiz. Better luck next time!</p>";
+            celebrationAnimation.innerHTML = "<img src='file:///C:/Users/Engin/OneDrive/Desktop/Website/photos/next.png' alt='Better luck next time'>";
+        }
+
+        // Display the count of correct and wrong answers
+        reviewMessage += "<br>Correct Answers: " + correctAnswers + "<br>Wrong Answers: " + wrongAnswers;
+        reviewText.innerHTML += "<p>" + reviewMessage + "</p>";
+
+        quizContainer.style.display = "none";
+        reviewContainer.style.display = "block";
+    }
+
+    window.onload = startQuiz;
+    </script>
+
+</body>
+
+</html>

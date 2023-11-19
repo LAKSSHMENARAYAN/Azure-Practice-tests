@@ -1,0 +1,775 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <!-- your existing head content here -->
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Azure Quiz</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f4f4f4;
+        }
+
+        #quiz-container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #fff;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        #header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        #quiz-number {
+            font-size: 16px;
+            color: #555;
+        }
+
+        #quiz-image {
+            width: 24px;
+            height: 24px;
+        }
+
+        .question {
+            font-size: 18px;
+            margin-bottom: 10px;
+            color: #333;
+            display: flex;
+            align-items: center;
+        }
+
+        #voiceIcon {
+            margin-left: 10px;
+            cursor: pointer;
+            width: 32px;
+            height: 32px;
+        }
+
+        .options {
+            margin-bottom: 20px;
+        }
+
+        .option {
+            margin-bottom: 10px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        .option:hover {
+            background-color: #f0f0f0;
+        }
+
+        .selected {
+            background-color: #ff6666 !important; /* Light red color for selected wrong option */
+        }
+
+        .correct {
+            background-color: #8bc34a !important; /* Light green color for correct option */
+        }
+
+        #timer {
+            font-size: 16px;
+            margin-bottom: 10px;
+            color: #555;
+        }
+
+        #result {
+            font-size: 18px;
+            margin-top: 20px;
+            color: #333;
+        }
+
+        #explanation {
+            font-size: 16px;
+            margin-top: 10px;
+            color: #555;
+            font-weight: bold;
+        }
+
+        #nextButton {
+            padding: 10px;
+            font-size: 16px;
+            cursor: pointer;
+            display: none;
+            background-color: #3498db;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            transition: background-color 0.3s;
+        }
+
+        #nextButton:hover {
+            background-color: #2980b9;
+        }
+
+        #celebration-animation {
+            text-align: center; /* Center the content horizontally */
+            margin-top: 20px; /* Add some top margin for spacing */
+        }
+
+        #celebration-animation img {
+            max-width: 50%; /* Make sure the image doesn't exceed the container width */
+            height: auto; /* Maintain the image's aspect ratio */
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="quiz-container">
+        <!-- your existing quiz content here -->
+        <div id="header">
+            <div id="quiz-number">Quiz 1 / 20</div>
+            <!-- Remove the existing image -->
+        </div>
+        <div id="question" class="question"></div>
+        <div id="options" class="options"></div>
+        <div id="timer"></div>
+        <div id="result"></div>
+        <div id="explanation"></div>
+        <button id="nextButton" onclick="nextQuestion()">Next</button>
+    </div>
+
+    
+
+    <div id="review-container" style="display: none;">
+        <h2>Quiz Review</h2>
+        <p id="review-text"></p>
+        <div id="celebration-animation"></div>
+    </div>
+
+    <script>
+        var currentQuestionIndex = 0;
+        var timer;
+        var speechSynthesisUtterance;
+        var isVoiceOn = false;
+
+        var questions = [
+            {
+            question: "What type of malicious attack attempts to read database values using form fields on a web site?",
+            options: [
+                "Brute Force Attack",
+                "Distributed Denial of Service (DDoS) Attack",
+                "SQL Injection Attack",
+                "XSS (Cross Site Scripting)"
+            ],
+            correctOption: "SQL Injection Attack",
+            explanation: "SQL injection is an attack in which malicious code is inserted into strings that are later passed to an instance of SQL Server for parsing and execution. Any procedure that constructs SQL statements should be reviewed for injection vulnerabilities because SQL Server will execute all syntactically valid queries that it receives."
+        },
+        {
+            question: "You have a SQL Database Server named SQLDB, and two SQL Databases named DB1 and DB2. SQLDB has a server-level firewall that allows IP addresses in the range 123.123.123.0-123.123.123.255 and denies all other traffic. DB1 has a database level firewall rule that allows IPs in the range 123.123.123.0-123.123.123.10. When a client using the IP address 123.123.123.25 attempts to access DB1, are they successful?",
+            options: [
+                "No, the connection will not succeed",
+                "Yes, the connection will succeed"
+            ],
+            correctOption: "Yes, the connection will succeed",
+            explanation: "You can have both server- and database-level firewall IP rules, and they exist independently. An IP can exist in a database rule and not a server rule, and the user would have access to the specific database and not all databases on the server."
+        },
+        {
+            question: "By default, what is the security model of Cosmos DB?",
+            options: [
+                "User name and password",
+                "Azure Active Directory",
+                "A valid authorization token",
+                "Security client certificate"
+            ],
+            correctOption: "A valid authorization token",
+            explanation: "Authorization token is always required to access an Azure Cosmos account. After the IP firewall or VNET ACLs or both are set up on the Azure Cosmos account, only requests originating from the sources you have specified (and with the authorization token) get valid responses."
+        },
+        {
+            question: "What is the purpose of a data dashboard, particularly in Microsoft Power BI?",
+            options: [
+                "A dashboard breaks up reports into pages",
+                "A dashboard shows the detailed data of what happened historically, such as the full log file",
+                "A dashboard tells a story of what is going on, and contains the most important elements of that story in one page",
+                "A dashboard is entirely visual elements such as charts and graphs, with no numbers"
+            ],
+            correctOption: "A dashboard tells a story of what is going on, and contains the most important elements of that story in one page",
+            explanation: "A dashboard should give you a lot of information in a limited amount of screen real estate, thus is has to summarize what is important and require you to go into another report to find the details if you wish to pursue them."
+        },
+        {
+            question: "What is the impact of allocating too many Request Units per second (RU/s) to a Cosmos DB database or container?",
+            options: [
+                "Queries will scale in performance to the number of RU/s you have allocated",
+                "The provisioned RU/s doesn't impact anything",
+                "Cosmos DB will scale the RU/s to what you use, regardless of what you provision",
+                "You will have to pay for the amount allocated regardless of how many are used"
+            ],
+            correctOption: "You will have to pay for the amount allocated regardless of how many are used",
+            explanation: "Once you allocate throughput to a database or container, you'll be charged for the resources provisioned, whether you use them or not."
+        },
+        {
+            question: "You have a small 25MB database currently hosted in AWS DynamoDB that you'd like to move to Azure Cosmos DB. You've chosen Core SQL API as the database type. Which is the best database migration tool or technique to get data from AWS DynamoDB to Azure CosmosDB?",
+            options: [
+                "Export the DB using a database backup (BACPAC) and create a new SQL DB using that file",
+                "Export the DB using bcp and import into Azure using the same tool",
+                "When creating the SQL Database in the Azure Portal, choose 'DynamoDB' as the source of the new database",
+                "Data Migration Tool"
+            ],
+            correctOption: "Data Migration Tool",
+            explanation: "Azure Data Migration Tool can handle the migration from AWS DynamoDB to Azure Cosmos DB using Core SQL API."
+        },
+        {
+            question: "In a relational database, can a foreign key reference another column on the same table?",
+            options: [
+                "Yes",
+                "No"
+            ],
+            correctOption: "Yes",
+            explanation: "Yes, tables can have foreign keys to themselves. This is called self-reference. For example, the employee table can refer to itself to identify who the manager of each employee is."
+        },
+        {
+            question: "When deploying an Azure Storage account, and you choose Geo Redundant Storage (GRS), how many copies of your data does Azure keep?",
+            options: [
+                "3",
+                "6",
+                "2",
+                "1"
+            ],
+            correctOption: "6",
+            explanation: "Azure Storage with Geo-Redundant Storage (GRS) keeps six copies of your data. Three copies are stored in the primary region, and three copies are stored in the secondary region."
+        },
+        {
+            question: "Which of the following items best defines 'data at rest' when it comes to securing data?",
+            options: [
+                "Data as it exists in a computer's memory",
+                "Data that exists statically on the physical media",
+                "Data as it's travelling over a network",
+                "Data that has yet to be physically written to the hard disk"
+            ],
+            correctOption: "Data that exists statically on the physical media",
+            explanation: "Data at rest refers to data that exists statically on physical media, whether magnetic or optical disk, on premises or in the cloud."
+        },
+        {
+            question: "In an Azure Data Factory, a ___________ is a logical grouping of activities that together perform a task. Fill in the blank.",
+            options: [
+                "Node",
+                "Cluster",
+                "Pipeline",
+                "Package"
+            ],
+            correctOption: "Pipeline",
+            explanation: "A pipeline is a logical grouping of activities in Azure Data Factory. It allows you to group tasks together that perform a specific task or set of tasks."
+        },
+        {
+            question: "What is the cheapest type of storage in Azure per GB stored?",
+            options: [
+                "Azure Table Storage",
+                "SQL Server Managed Instance",
+                "Cosmos DB document storage",
+                "Azure Redis Cache"
+            ],
+            correctOption: "Azure Table Storage",
+            explanation: "Azure Table Storage is considered one of the most cost-effective options for storing data in Azure. It is particularly suitable for certain types of applications, offering lower costs compared to other storage solutions for similar volumes of data."
+        },
+        {
+            question: "Which CosmosDB API format works best with document (JSON) data?",
+            options: [
+                "Graph API",
+                "MongoDB API",
+                "Core SQL",
+                "Cassandra API"
+            ],
+            correctOption: "Core SQL",
+            explanation: "Core (SQL) API in Cosmos DB works best with document (JSON) data. It stores data in JSON document format, making it suitable for applications dealing with semi-structured or unstructured data."
+        },
+        {
+            question: "What types of threats does Advanced Threat Protection protect your SQL Database against?",
+            options: [
+                "SQL Injection, Potential data infiltration, and brute force attacks",
+                "Queries that update too many rows at once",
+                "Network security threats such as access from unknown IP addresses",
+                "Long running queries that slow down data performance"
+            ],
+            correctOption: "SQL Injection, Potential data infiltration, and brute force attacks",
+            explanation: "Advanced Threat Protection in SQL Database protects against various threats, including SQL injection, potential data infiltration, and brute force attacks. It provides security alerts on anomalous activities to help users detect and respond to potential threats."
+        },
+        {
+            question: "What type of data is stored in Azure Blob Storage?",
+            options: [
+                "Partitioned data",
+                "Key-value data",
+                "Structured data",
+                "Unstructured data"
+            ],
+            correctOption: "Unstructured data",
+            explanation: "Azure Blob Storage is used for storing unstructured data such as documents, videos, pictures, backups, and other binary or text-based data. It is suitable for a variety of data types and is often used for large-scale object storage."
+        },
+        {
+            question: "Which of the following methods is commonly used to secure data in transit?",
+            options: [
+                "Bitlocker Encryption",
+                "Azure Disk Encryption",
+                "One-way hash function",
+                "Secure Sockets Layer (SSL) or HTTPS"
+            ],
+            correctOption: "Secure Sockets Layer (SSL) or HTTPS",
+            explanation: "SSL or HTTPS is commonly used to secure data in transit. It encrypts the communication channel between systems, ensuring that data transmitted over the network is protected from eavesdropping and tampering."
+        },
+        {
+            question: "Which of the following products/services is a suite of business analytics tools that allow analysts to easily create beautiful dashboards and reports on your organization's data?",
+            options: [
+                "Synapse Analytics (formerly SQL Data Warehouse)",
+                "Azure Analysis Services",
+                "Power BI",
+                "SQL Query Analyzer"
+            ],
+            correctOption: "Power BI",
+            explanation: "Power BI is a suite of business analytics tools that enables analysts to create visually appealing dashboards and reports. It simplifies data preparation, connects to various data sources, and facilitates ad hoc analysis."
+        },
+        {
+            question: "Which of the following Azure databases is considered Infrastructure as a Service (IaaS)?",
+            options: [
+                "Cosmos DB",
+                "SQL Server in a VM",
+                "Managed SQL Instance",
+                "SQL Database"
+            ],
+            correctOption: "SQL Server in a VM",
+            explanation: "SQL Server in a VM is considered Infrastructure as a Service (IaaS). In this scenario, users are responsible for managing the guest operating system and ensuring that the database server is patched and updated."
+        },
+        {
+            question: "Which of the following database models is optimized for deep, complex queries that might take hours to run or tie up the computer from handling other tasks?",
+            options: [
+                "Azure Stream Analytics",
+                "OLAP (online analytical processing)",
+                "Data Lake storage",
+                "OLTP (online transaction processing)"
+            ],
+            correctOption: "OLAP (online analytical processing)",
+            explanation: "OLAP (online analytical processing) databases are optimized for deep, complex queries that can take hours to run. They are designed to handle analytics workloads and are not suitable for transactional processing tasks."
+        },
+        {
+        question: "Which type of data analytics workload is best for processing time-sensitive data that arrives from an external source every few seconds?",
+        options: [
+            "Azure Blob Storage",
+            "Event-based messaging",
+            "Real-time processing",
+            "Batch processing"
+        ],
+        correctOption: "Real-time processing",
+        explanation: "Real-time processing deals with streams of data that are captured in real-time and processed with minimal latency to generate real-time (or near-real-time) reports or automated responses. For example, a real-time traffic monitoring solution might use sensor data to detect high traffic volumes."
+    },
+    {
+        question: "Which of the following can be called semi-structured data?",
+        options: [
+            "Data stored in XML format",
+            "Images in a blob storage account",
+            "SQL Database table",
+            "A printed invoice"
+        ],
+        correctOption: "Data stored in XML format",
+        explanation: "Semi-structured data is less organized than structured data and is not stored in a relational format. XML is an example of semi-structured data, containing tags that make the organization and hierarchy of the data apparent."
+    },
+    {
+        question: "What is a feature of Power BI Interactive reports?",
+        options: [
+            "The ability to create dashboards that give you a visual look at the status of the business.",
+            "The ability to create customizable online web reports, that are beautiful and can be customized and modified in various complex ways.",
+            "The ability to create detailed reports that are intended to be printed and shared."
+        ],
+        correctOption: "The ability to create customizable online web reports, that are beautiful and can be customized and modified in various complex ways.",
+        explanation: "Power BI Interactive reports allow the creation of customizable online web reports that are beautiful and can be modified in various complex ways."
+    },
+    {
+        question: "Which CosmosDB API format works best with key-value data?",
+        options: [
+            "Cassandra API",
+            "Table API",
+            "Gremlin API",
+            "MongoDB API"
+        ],
+        correctOption: "Table API",
+        explanation: "Table API in Cosmos DB works best with key-value data. It stores data in a key/value format."
+    },
+    {
+        question: "Which of the following sentences best describes what a TABLE is in SQL Server?",
+        options: [
+            "Tables are database objects that contain all the data in a database.",
+            "Tables are a collection of views.",
+            "Tables are collections of key-value pairs.",
+            "Data can be stored directly into a relational database, and the use of tables are optional."
+        ],
+        correctOption: "Tables are database objects that contain all the data in a database.",
+        explanation: "Tables in SQL Server are database objects that contain all the data in a database. Data is logically organized in a row-and-column format."
+    },
+    {
+        question: "Your company is expecting terabytes of data to come in as non-structured JSON data. You can store it as a key-value pair. There is no requirement for maintaining relationships between the different entities at all, and your main consideration is speed of storing data and price. Which is the best non-relational data store for this scenario that you would recommend?",
+        options: [
+            "Azure Queue Storage",
+            "Cosmos DB",
+            "Redis Cache",
+            "Azure Table Storage"
+        ],
+        correctOption: "Azure Table Storage",
+        explanation: "Azure Table Storage is designed for scaling inexpensively and is suitable for storing non-structured JSON data as key-value pairs with a focus on speed and cost."
+    },
+    {
+        question: "Cosmos DB uses a primary key model to give people full control over a Cosmos DB account. How do you limit someone to having only read-only access to your database?",
+        options: [
+            "Network Security Group (NSG)",
+            "Access Key and Endpoint",
+            "Encrypt the database",
+            "Resource Tokens"
+        ],
+        correctOption: "Resource Tokens",
+        explanation: "Resource tokens provide access to the application resources within a database and are used to limit someone to having only read-only access to a Cosmos DB account."
+    },
+    {
+        question: "Which Azure service is a managed-version of the open-source Apache Spark application, or provides a Spark environment in Azure?",
+        options: [
+            "SQL Database, SQL Managed Instance",
+            "Azure Blob Storage, Azure Table Storage",
+            "Azure Synapse Analytics, Azure ML Studio",
+            "Azure HDInsight, Azure Databricks"
+        ],
+        correctOption: "Azure HDInsight, Azure Databricks",
+        explanation: "Azure HDInsight and Azure Databricks are Azure services that provide a Spark environment, offering managed versions of the open-source Apache Spark application."
+    },
+    {
+        question: "Every day, car dealers upload their sales and service reports into your web portal. Your web portal stores these files in a Blob Storage container. The data is formatted exactly as your Cosmos DB data needs it. You don't anticipate needing to modify it before getting it into the database. Which data ingestion model seems to work best for this scenario?",
+        options: [
+            "ETL",
+            "ELT",
+            "Data warehouse",
+            "Transactional database"
+        ],
+        correctOption: "ELT",
+        explanation: "Since the data is well-formatted and does not require modification before loading into Cosmos DB, ELT (Extract, Load, Transform) data ingestion model seems to work best for this scenario."
+    },
+    {
+        question: "Which of the following are examples of Data Manipulation Language (DML) SQL statements?",
+        options: [
+            "GRANT, REVOKE",
+            "COMMIT, ROLLBACK",
+            "SELECT, INSERT, UPDATE",
+            "CREATE, DROP, ALTER"
+        ],
+        correctOption: "SELECT, INSERT, UPDATE",
+        explanation: "SELECT, INSERT, and UPDATE are examples of Data Manipulation Language (DML) SQL statements that are used to manipulate data in a database."
+    },
+    {
+        question: "What type of security does Transparent Data Encryption (TDE) provide?",
+        options: [
+            "Data-at-rest encryption",
+            "Data-in-transit encryption",
+            "Secure storage of secrets, keys and certificates",
+            "End-to-end (E2E) encryption"
+        ],
+        correctOption: "Data-at-rest encryption",
+        explanation: "Transparent Data Encryption (TDE) encrypts data files in SQL Server, Azure SQL Database, and Azure Synapse Analytics, providing data-at-rest encryption."
+    },
+    {
+        question: "What type of cloud service is Cosmos DB?",
+        options: [
+            "Infrastructure-as-a-Service (IaaS)",
+            "Software-as-a-Service (SaaS)",
+            "Platform-as-a-Service (PaaS)"
+        ],
+        correctOption: "Platform-as-a-Service (PaaS)",
+        explanation: "Azure Cosmos DB is a fully managed Platform-as-a-Service (PaaS) offering for database applications. It provides a scalable and globally distributed database service."
+    },
+    {
+        question: "Which of the following sentences best describes what a VIEW is in SQL Server?",
+        options: [
+            "A VIEW is a special type of stored procedure that automatically runs with INSERT, UPDATE or DELETE statements take place.",
+            "A VIEW is a collection of tables that stores a specific set of structured data.",
+            "A VIEW is a group of one or more Transact-SQL statements.",
+            "A VIEW is a virtual table whose contents are defined by a query."
+        ],
+        correctOption: "A VIEW is a virtual table whose contents are defined by a query.",
+        explanation: "A VIEW in SQL Server is a virtual table whose contents are defined by a query. It does not exist as a stored set of data values but is dynamically produced when the view is referenced."
+    },
+    {
+        question: "Data Definition Language (DDL) primarily does what?",
+        options: [
+            "Provide ways to create backups and restore from backups.",
+            "Determine which users and logins can access data and perform operations.",
+            "Define data structures",
+            "Affect the information stored in the database"
+        ],
+        correctOption: "Define data structures",
+        explanation: "Data Definition Language (DDL) statements define data structures. Use these statements to create, alter, or drop data structures in a database. These statements include CREATE, DROP, and ALTER."
+    },
+    {
+        question: "When it comes to data security, what is the Zero Trust model?",
+        options: [
+            "Allow users to save a cookie so that they do not have to log in again next time.",
+            "Users are prompted with Multi-factor Authentication for extra authentication verification.",
+            "Require a log-in every session from every user.",
+            "Assume that you have been breached."
+        ],
+        correctOption: "Assume that you have been breached.",
+        explanation: "The Zero Trust model assumes breach and verifies each request as though it originated from an uncontrolled network. Instead of trusting everything behind the corporate firewall, the model teaches us to 'never trust, always verify.'"
+    },
+    {
+        question: "You have a SQL Server running inside your own environment, and you'd like to migrate it into the cloud. You happen to know that the settings on the database have been customized for a business reason. You need to be sure that absolutely NO code will have to change when you move this database - only the connection string. Which is the best way to migrate a SQL Server to Azure to ensure absolutely guaranteed no coding or SQL database schema changes required?",
+        options: [
+            "Migrate to Azure Table Storage",
+            "Migrate to Azure SQL Database",
+            "Migrate to Azure Managed SQL Instance",
+            "Migrate to SQL Server in a VM"
+        ],
+        correctOption: "Migrate to SQL Server in a VM",
+        explanation: "SQL Server in a VM is the most identical version of SQL Server in Azure to a database running on your local machine. Migrating to a VM ensures compatibility and minimal code changes."
+    },
+    {
+        question: "A customer just purchased a service from your company, and a new data row was added to table SALES to indicate this event as soon as it happened. What type of database is this?",
+        options: [
+            "Analytics database",
+            "Caching database",
+            "Transactional database",
+            "Data warehouse"
+        ],
+        correctOption: "Transactional database",
+        explanation: "The management of transactional data using computer systems is referred to as online transaction processing (OLTP). OLTP systems record business interactions as they occur in the day-to-day operation of the organization."
+    },
+    {
+        question: "What type of non-relational data revolves around quickly storing and retrieving a single value per unique item? It is not optimized for queries that require examining the contents of the data, such as a WHERE clause in a typical relational query, but is extremely scalable and designed for storing data across multiple nodes on separate machines.",
+        options: [
+            "Graph data",
+            "Document data",
+            "Object data",
+            "Key-value data"
+        ],
+        correctOption: "Key-value data",
+        explanation: "Key-value data is designed for quick storage and retrieval of data based on a key. It's not good for doing searches across multiple keys or examining the contents of multiple values. It is extremely scalable and suitable for distributed storage."
+    },
+    {
+        question: "What do you get when you use Archive access tier for Azure Blob Storage?",
+        options: [
+            "Way less expensive to store the file, and long delay to access the file (perhaps hours)",
+            "The default level of access, set when you first create the storage account as default.",
+            "The fastest way to retrieve files in Azure for high-performance needs",
+            "Slightly less expensive to store the file per GB, and around double the cost to access the file. No coding changes required compared to the Hot tier."
+        ],
+        correctOption: "Way less expensive to store the file, and long delay to access the file (perhaps hours)",
+        explanation: "The archive access tier has the lowest storage cost but higher data retrieval costs compared to hot and cool tiers. Data in the archive tier can take several hours to retrieve depending on the specified rehydration priority."
+    },
+    {
+        question: "You have 10 TB of log files stored in an Azure Data Lake Storage Gen2, and would like to save some money on storage. These files are historical, and you don't expect to be needing to access them any more. Because of company policy, you still need to keep them around for 3 more months in case they are needed. What actions can you take to reduce the cost, in the fewest possible steps?",
+        options: [
+            "Set the default access tier on the account to Cool tier",
+            "Implement lifecycle management policies on the Azure Data Lake storage to move files to cool or archive storage tier",
+            "Implement a compression algorithm (like ZIP) to reduce the size of the files",
+            "Use Azure Data Factory to move the data from high cost Data Lake storage to lower cost standard Blob Storage"
+        ],
+        correctOption: "Implement lifecycle management policies on the Azure Data Lake storage to move files to cool or archive storage tier",
+        explanation: "Implementing lifecycle management policies allows you to move files to a lower-access storage tier to save money. In this case, setting files to the Cool tier is appropriate for historical data."
+    },
+    {
+        question: "Your company has one SQL Database server that has two SQL Databases on it. You would like to allow connections over the public internet to these databases. Each database has a different set of clients with no overlap. You would like clients of one company to be able to access one database but not the other. How do you configure your firewall to enable this?",
+        options: [
+            "Azure Firewall service",
+            "Database-level IP firewall",
+            "Network Security Group (NSG)",
+            "Server-level IP firewall"
+        ],
+        correctOption: "Database-level IP firewall",
+        explanation: "The database-level IP firewall is specifically designed to allow IP addresses to access only one database in a server and not all databases. This provides granular control over database-level access."
+    },
+    {
+        question: "What type of data does Azure Table Storage store?",
+        options: [
+            "Unstructured data",
+            "Key-value data",
+            "Graph data",
+            "Relational data"
+        ],
+        correctOption: "Key-value data",
+        explanation: "Azure Table Storage uses key-value pairs to store data. It is a NoSQL data store designed for quick and scalable storage and retrieval of data based on key-value pairs."
+    }
+        
+    ];
+
+
+        function startQuiz() {
+            currentQuestionIndex = 0;
+            displayQuestion();
+        }
+
+        function displayQuestion() {
+            var questionContainer = document.getElementById("question");
+            var optionsContainer = document.getElementById("options");
+            var timerContainer = document.getElementById("timer");
+            var resultContainer = document.getElementById("result");
+            var explanationContainer = document.getElementById("explanation");
+            var nextButton = document.getElementById("nextButton");
+            var quizNumberContainer = document.getElementById("quiz-number");
+
+            var currentQuestion = questions[currentQuestionIndex];
+
+            quizNumberContainer.textContent = "Quiz " + (currentQuestionIndex + 1) + " / " + questions.length;
+
+            questionContainer.innerHTML = `<div>${currentQuestionIndex + 1}. ${currentQuestion.question}</div><img id="voiceIcon" src="file:///C:/Users/Engin/OneDrive/Desktop/Website/photos/speaker.jpg" alt="Voice" onclick="toggleVoice('${currentQuestion.question} ${currentQuestion.options.join('. ')}')">`;
+            timerContainer.textContent = "Time remaining: 48 seconds";
+
+            optionsContainer.innerHTML = "";
+            currentQuestion.options.forEach(function (option, index) {
+                var optionElement = document.createElement("div");
+                optionElement.className = "option";
+                optionElement.textContent = (index + 1) + ". " + option;
+                optionElement.onclick = function () {
+                    checkAnswer(option, index);
+                };
+                optionsContainer.appendChild(optionElement);
+            });
+
+            resultContainer.textContent = "";
+            explanationContainer.textContent = "";
+            nextButton.style.display = "none";
+
+            startTimer();
+            // Your existing code for displaying a question
+        }
+
+        function startTimer() {
+            var timerContainer = document.getElementById("timer");
+            var seconds = 48;
+
+            timer = setInterval(function () {
+                seconds--;
+                timerContainer.textContent = "Time remaining: " + seconds + " seconds";
+
+                if (seconds <= 0) {
+                    clearInterval(timer);
+                    nextQuestion();
+                }
+            }, 1000);
+            // Your existing code for the timer
+        }
+
+        function checkAnswer(selectedOption, selectedIndex) {
+        clearInterval(timer);
+
+        var currentQuestion = questions[currentQuestionIndex];
+        var resultContainer = document.getElementById("result");
+        var explanationContainer = document.getElementById("explanation");
+        var nextButton = document.getElementById("nextButton");
+        var options = document.getElementsByClassName("option");
+
+        // Disable further option selection
+        for (var i = 0; i < options.length; i++) {
+            options[i].onclick = function () {};
+        }
+
+        // Remove all previous highlights
+        for (var i = 0; i < options.length; i++) {
+            options[i].classList.remove("selected");
+            options[i].classList.remove("correct");
+        }
+
+        // Store the user's answer in the questions array
+        currentQuestion.userAnswer = selectedOption;
+
+        if (selectedOption === currentQuestion.correctOption) {
+            resultContainer.textContent = "Correct!";
+            explanationContainer.innerHTML = "<p><strong>Explanation</strong>: " + currentQuestion.explanation + "</p>";
+            options[selectedIndex].classList.add("correct");
+        } else {
+            resultContainer.textContent = "Wrong. The correct answer is: " + currentQuestion.correctOption;
+            explanationContainer.innerHTML = "<p><strong>Explanation</strong>: " + currentQuestion.explanation + "</p>";
+            options[selectedIndex].classList.add("selected");
+            options[currentQuestion.options.indexOf(currentQuestion.correctOption)].classList.add("correct");
+        }
+
+        stopVoice(); // Stop ongoing voice when moving to the next question
+        nextButton.style.display = "block";
+    }
+
+            // Your existing code for checking the answer
+        
+
+            function nextQuestion() {
+            clearInterval(timer);
+            stopVoice(); // Stop ongoing voice when moving to the next question
+            currentQuestionIndex++;
+
+            if (currentQuestionIndex < questions.length) {
+                displayQuestion();
+            } else {
+                displayReview(); // Call the displayReview function when all questions are answered
+            }
+            // Your existing code for moving to the next question
+        }
+
+        function toggleVoice(text) {
+            if (isVoiceOn) {
+                stopVoice();
+            } else {
+                speak(text);
+            }
+            isVoiceOn = !isVoiceOn; // Toggle the state
+        }
+            // Your existing code for toggling voice
+
+        function speak(text) {
+            speechSynthesisUtterance = new SpeechSynthesisUtterance(text);
+            window.speechSynthesis.speak(speechSynthesisUtterance);
+            // Your existing code for speaking
+        }
+
+        function stopVoice() {
+            if (speechSynthesisUtterance) {
+                window.speechSynthesis.cancel();
+                speechSynthesisUtterance = null; // Reset the SpeechSynthesisUtterance object
+            }
+            // Your existing code for stopping voice
+        }
+
+        function displayReview() {
+        var quizContainer = document.getElementById("quiz-container");
+        var reviewContainer = document.getElementById("review-container");
+        var reviewText = document.getElementById("review-text");
+        var celebrationAnimation = document.getElementById("celebration-animation");
+
+        var correctAnswers = 0;
+        var wrongAnswers = 0;
+
+        questions.forEach(function (question) {
+            if (question.userAnswer === question.correctOption) {
+                correctAnswers++;
+            } else {
+                wrongAnswers++;
+            }
+        });
+
+        var passPercentage = 70;
+        var userScore = (correctAnswers / questions.length) * 100;
+
+        var reviewMessage = "You answered " + correctAnswers + " out of " + questions.length + " questions correctly.";
+
+        if (userScore >= passPercentage) {
+            reviewText.innerHTML = "<p style='font-size: 24px; text-align: center;'>Congratulations! You passed the quiz.</p>";
+            celebrationAnimation.innerHTML = "<img src='file:///C:/Users/Engin/OneDrive/Desktop/Website/photos/congratulation.jpg' alt='Celebration'>";
+        } else {
+            reviewText.innerHTML = "<p style='font-size: 24px; text-align: center;'>Unfortunately, you did not pass the quiz. Better luck next time!</p>";
+            celebrationAnimation.innerHTML = "<img src='file:///C:/Users/Engin/OneDrive/Desktop/Website/photos/next.png' alt='Better luck next time'>";
+        }
+
+        // Display the count of correct and wrong answers
+        reviewMessage += "<br>Correct Answers: " + correctAnswers + "<br>Wrong Answers: " + wrongAnswers;
+        reviewText.innerHTML += "<p>" + reviewMessage + "</p>";
+
+        quizContainer.style.display = "none";
+        reviewContainer.style.display = "block";
+    }
+
+    window.onload = startQuiz;
+    </script>
+
+</body>
+
+</html>
